@@ -3,102 +3,224 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ry’s Auto Shop - Owner Page</title>
+<title>Ry’s Auto Shop - Owner Dashboard</title>
+
 <style>
-body{font-family:Arial, Helvetica, sans-serif; background:#111; color:white; margin:0; padding:20px;}
-h1,h2{color:#ff3c00;}
-table{width:100%; border-collapse:collapse; margin-top:20px;}
-th, td{padding:10px; border:1px solid #444; text-align:center;}
-th{background:#222;}
-tr:nth-child(even){background:#1a1a1a;}
-.btn{padding:5px 10px; border:none; border-radius:5px; cursor:pointer;}
-.deleteBtn{background:#cc2f00; color:white;}
-.deleteBtn:hover{background:#ff3c00;}
-.summary{margin-top:20px; font-size:18px;}
+body{
+font-family:Arial,sans-serif;
+background:#111;
+color:white;
+margin:0;
+padding:20px;
+}
+
+h1{
+color:#ff3c00;
+text-align:center;
+margin-bottom:20px;
+}
+
+section{
+margin-bottom:40px;
+}
+
+select{
+padding:8px;
+width:250px;
+margin-bottom:10px;
+border-radius:5px;
+border:none;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+margin-top:10px;
+}
+
+th,td{
+border:1px solid #555;
+padding:8px;
+text-align:left;
+}
+
+th{
+background:#222;
+color:#ff3c00;
+}
+
+tr.pending{
+background:#1a1a1a;
+}
+
+tr.done{
+background:#003300;
+color:#00ff66;
+}
+
+button{
+padding:5px 10px;
+margin:2px;
+cursor:pointer;
+border:none;
+border-radius:5px;
+color:white;
+background:#cc0000;
+}
+
+button:hover{
+opacity:0.8;
+}
+
+.checkbox{
+transform:scale(1.2);
+cursor:pointer;
+}
 </style>
 </head>
+
 <body>
 
 <h1>Ry’s Auto Shop - Owner Dashboard</h1>
 
-<div class="summary">
-    <p><strong>Total Cars Today:</strong> <span id="totalCars">0</span></p>
-    <p><strong>Total Income Today:</strong> ₱<span id="totalIncome">0</span></p>
-</div>
+<section>
+<h2>Sort Bookings</h2>
+<select id="sortSelect">
+<option value="">Sort By</option>
+<option value="name">Name</option>
+<option value="date">Date</option>
+<option value="time">Time</option>
+</select>
+</section>
 
-<table id="bookingTable">
-    <thead>
-        <tr>
-            <th>#</th>
-            <th>Name</th>
-            <th>Mobile</th>
-            <th>Service</th>
-            <th>Car Type</th>
-            <th>Price</th>
-            <th>Date</th>
-            <th>Time</th>
-            <th>Payment Type</th>
-            <th>Payment Method</th>
-            <th>Estimated Completion</th>
-            <th>Action</th>
-        </tr>
-    </thead>
-    <tbody></tbody>
+<section>
+<h2>Pending Cars</h2>
+<table id="pendingTable">
+<thead>
+<tr>
+<th>Done</th>
+<th>Name</th>
+<th>Mobile</th>
+<th>Service</th>
+<th>Car Type</th>
+<th>Estimated Finish</th>
+<th>Price</th>
+<th>Date</th>
+<th>Time</th>
+<th>Delete</th>
+</tr>
+</thead>
+<tbody></tbody>
 </table>
+</section>
+
+<section>
+<h2>Finished Cars</h2>
+<table id="doneTable">
+<thead>
+<tr>
+<th>Done</th>
+<th>Name</th>
+<th>Mobile</th>
+<th>Service</th>
+<th>Car Type</th>
+<th>Estimated Finish</th>
+<th>Price</th>
+<th>Date</th>
+<th>Time</th>
+<th>Delete</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</section>
 
 <script>
-// Load bookings from localStorage
-function loadBookings(){
-    const bookings = JSON.parse(localStorage.getItem('bookings')) || [];
-    const tbody = document.querySelector('#bookingTable tbody');
-    tbody.innerHTML = '';
-    let totalCars = 0;
-    let totalIncome = 0;
-    const today = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
 
-    bookings.forEach((b,i)=>{
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${i+1}</td>
-            <td>${b.name}</td>
-            <td>${b.mobile}</td>
-            <td>${b.service}</td>
-            <td>${b.carType}</td>
-            <td>₱${b.price}</td>
-            <td>${b.date}</td>
-            <td>${b.time}</td>
-            <td>${b.paymentType}</td>
-            <td>${b.paymentMethod}</td>
-            <td>${b.duration} ${b.duration===0.5 ? 'half day' : b.duration>1 ? 'days' : 'day'}</td>
-            <td><button class="btn deleteBtn" data-index="${i}">Delete</button></td>
-        `;
-        tbody.appendChild(tr);
+// Estimated completion time per service
+const serviceDuration = {
+"Engine Repair":"2-3 Days",
+"Oil Change":"1-2 Hours",
+"Brake Replacement":"3-4 Hours",
+"Tire Replacement":"1-2 Hours",
+"Car Tune-Up":"2-3 Hours"
+};
 
-        // Count only today's bookings
-        if(b.date === today){
-            totalCars++;
-            totalIncome += parseFloat(b.price);
-        }
-    });
+// Load from localStorage
+let bookings = JSON.parse(localStorage.getItem('bookings')) || [];
 
-    document.getElementById('totalCars').textContent = totalCars;
-    document.getElementById('totalIncome').textContent = totalIncome.toFixed(2);
+function renderBookings(){
 
-    // Add delete functionality
-    document.querySelectorAll('.deleteBtn').forEach(btn=>{
-        btn.addEventListener('click',()=>{
-            const index = btn.getAttribute('data-index');
-            if(confirm('Are you sure you want to delete this booking?')){
-                bookings.splice(index,1);
-                localStorage.setItem('bookings', JSON.stringify(bookings));
-                loadBookings(); // reload table
-            }
-        });
-    });
+const pendingBody = document.querySelector('#pendingTable tbody');
+const doneBody = document.querySelector('#doneTable tbody');
+
+pendingBody.innerHTML = '';
+doneBody.innerHTML = '';
+
+let sortedBookings = bookings.map((b,i)=>({...b, index:i}));
+
+const sortValue = document.getElementById('sortSelect').value;
+
+if(sortValue === 'name'){
+sortedBookings.sort((a,b)=>a.name.localeCompare(b.name));
+}
+else if(sortValue === 'date'){
+sortedBookings.sort((a,b)=>new Date(a.date+'T'+a.time) - new Date(b.date+'T'+b.time));
+}
+else if(sortValue === 'time'){
+sortedBookings.sort((a,b)=>a.time.localeCompare(b.time));
 }
 
-// Initial load
-loadBookings();
+sortedBookings.forEach(b=>{
+
+const row = document.createElement('tr');
+row.className = b.done ? 'done' : 'pending';
+
+const duration = serviceDuration[b.service] || "N/A";
+
+row.innerHTML = `
+<td><input type="checkbox" class="checkbox" ${b.done ? 'checked' : ''} onchange="toggleDone(${b.index})"></td>
+<td>${b.name}</td>
+<td>${b.mobile}</td>
+<td>${b.service}</td>
+<td>${b.carType}</td>
+<td>${duration}</td>
+<td>₱${b.price}</td>
+<td>${b.date}</td>
+<td>${b.time}</td>
+<td><button onclick="deleteBooking(${b.index})">Delete</button></td>
+`;
+
+if(b.done){
+doneBody.appendChild(row);
+}else{
+pendingBody.appendChild(row);
+}
+
+});
+
+}
+
+// Mark done / undo
+function toggleDone(index){
+bookings[index].done = !bookings[index].done;
+localStorage.setItem('bookings', JSON.stringify(bookings));
+renderBookings();
+}
+
+// Delete booking
+function deleteBooking(index){
+if(confirm("Delete this booking?")){
+bookings.splice(index,1);
+localStorage.setItem('bookings', JSON.stringify(bookings));
+renderBookings();
+}
+}
+
+document.getElementById('sortSelect').addEventListener('change', renderBookings);
+
+renderBookings();
+
 </script>
 
 </body>
