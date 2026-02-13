@@ -3,149 +3,135 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ry’s Auto Shop - Owner Page</title>
+<title>Owner Page - Ry’s Auto Shop</title>
 <style>
-body{font-family:Arial,sans-serif; background:#111; color:white; margin:0; padding:20px;}
-h1{color:#ff3c00; text-align:center; margin-bottom:20px;}
-section{margin-bottom:40px;}
-input[type="text"], select{padding:8px; width:300px; margin-bottom:10px; border-radius:5px; border:none;}
-table{width:100%; border-collapse:collapse; margin-top:10px;}
-th,td{border:1px solid #555; padding:8px; text-align:left;}
-th{background:#222;}
-tr.pending{background:#222;}
-tr.done{background:#003300; color:#0f0;}
-tr.future{background:#1a1a1a;}
-tr.today{background:#663300;}
-tr.past{background:#555;}
-button{padding:5px 10px; margin:2px; cursor:pointer; border:none; border-radius:5px; color:white;}
-.btn-done{background:#00cc00;}
-.btn-delete{background:#cc0000;}
+body {font-family: Arial, Helvetica, sans-serif; background:#111; color:white; padding:20px;}
+h1 {color:#ff3c00; text-align:center;}
+table {width:100%; border-collapse:collapse; margin-top:20px;}
+th, td {border:1px solid #ff3c00; padding:10px; text-align:center;}
+th {background:#222;}
+.done {background:#0a3;}
+.pending {background:#333;}
+button {padding:5px 10px; border:none; border-radius:5px; cursor:pointer;}
+button.delete {background:#ff3c00; color:white;}
+button.delete:hover {background:#cc2f00;}
+select {padding:5px; margin-bottom:10px;}
 </style>
 </head>
 <body>
 
-<h1>Ry’s Auto Shop - Owner Dashboard</h1>
+<h1>Ry’s Auto Shop - Owner Page</h1>
 
-<section>
-    <h2>Search / Filter Bookings</h2>
-    <input type="text" id="searchInput" placeholder="Search by Name, Service, Car Type, or Date">
-    <select id="sortSelect">
-        <option value="">Sort By</option>
-        <option value="name">Name</option>
-        <option value="date">Date</option>
-        <option value="time">Time</option>
-    </select>
-</section>
+<label for="sortSelect">Sort By: </label>
+<select id="sortSelect">
+    <option value="date">Date</option>
+    <option value="time">Time</option>
+    <option value="name">Name</option>
+</select>
 
-<section>
-    <h2>Pending / Work Not Done</h2>
-    <table id="pendingTable">
-        <thead>
-            <tr>
-                <th>Name</th><th>Mobile</th><th>Service</th><th>Car Type</th><th>Oil/Fuel</th><th>Price</th><th>Date</th><th>Time</th><th>Payment</th><th>Actions</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
-</section>
+<h2>Pending Bookings</h2>
+<table id="pendingTable">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Mobile</th>
+            <th>Service</th>
+            <th>Car Type</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Estimated Completion</th>
+            <th>Done</th>
+            <th>Delete</th>
+        </tr>
+    </thead>
+    <tbody id="pendingBody"></tbody>
+</table>
 
-<section>
-    <h2>Finished Work</h2>
-    <table id="doneTable">
-        <thead>
-            <tr>
-                <th>Name</th><th>Mobile</th><th>Service</th><th>Car Type</th><th>Oil/Fuel</th><th>Price</th><th>Date</th><th>Time</th><th>Payment</th><th>Actions</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
-</section>
+<h2>Finished Bookings</h2>
+<table id="finishedTable">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Mobile</th>
+            <th>Service</th>
+            <th>Car Type</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Estimated Completion</th>
+        </tr>
+    </thead>
+    <tbody id="finishedBody"></tbody>
+</table>
 
 <script>
-// Load bookings
-let bookings = JSON.parse(localStorage.getItem('bookings')) || [];
+// Load bookings from localStorage
+function getBookings() {
+    return JSON.parse(localStorage.getItem('bookings')) || [];
+}
 
-// Render bookings with filter and sorting
-function renderBookings(filter=''){
-    const pendingTbody = document.getElementById('pendingTable').querySelector('tbody');
-    const doneTbody = document.getElementById('doneTable').querySelector('tbody');
-    pendingTbody.innerHTML = '';
-    doneTbody.innerHTML = '';
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0]; // yyyy-mm-dd
+// Render tables
+function renderBookings() {
+    const bookings = getBookings();
+    const pendingBody = document.getElementById('pendingBody');
+    const finishedBody = document.getElementById('finishedBody');
+    pendingBody.innerHTML = '';
+    finishedBody.innerHTML = '';
 
-    // Sorting
-    const sortBy = document.getElementById('sortSelect').value;
-    let sortedBookings = [...bookings];
-    if(sortBy==='name'){
-        sortedBookings.sort((a,b)=>a.name.localeCompare(b.name));
-    } else if(sortBy==='date'){
-        sortedBookings.sort((a,b)=>new Date(a.date+'T'+a.time) - new Date(b.date+'T'+b.time));
-    } else if(sortBy==='time'){
-        sortedBookings.sort((a,b)=>{
-            const t1 = a.time.split(':'); const t2 = b.time.split(':');
-            return (parseInt(t1[0])*60 + parseInt(t1[1])) - (parseInt(t2[0])*60 + parseInt(t2[1]));
-        });
-    }
-
-    sortedBookings.forEach((b, index)=>{
-        const searchString = `${b.name} ${b.service} ${b.carType} ${b.date}`.toLowerCase();
-        if(filter && !searchString.includes(filter.toLowerCase())) return;
-
+    bookings.forEach((b, index) => {
         const row = document.createElement('tr');
-        // Status color
-        if(b.done) row.className='done';
-        else {
-            if(b.date === todayStr) row.className='today';
-            else if(new Date(b.date+'T'+b.time) > now) row.className='future';
-            else row.className='past';
-        }
-
-        const oilFuel = b.oilType ? `${b.oilType} / ${b.fuelType}` : '-';
+        row.className = b.done ? 'done' : 'pending';
         row.innerHTML = `
             <td>${b.name}</td>
             <td>${b.mobile}</td>
             <td>${b.service}</td>
-            <td>${b.carType}</td>
-            <td>${oilFuel}</td>
-            <td>₱${b.price}</td>
+            <td>${b.carType || '-'}</td>
             <td>${b.date}</td>
             <td>${b.time}</td>
-            <td>${b.paymentType} (${b.paymentMethod})</td>
-            <td>
-                ${!b.done ? `<button class="btn-done" onclick="markDone(${index})">✔ Done</button>` : ''}
-                <button class="btn-delete" onclick="deleteBooking(${index})">🗑 Delete</button>
-            </td>
+            <td>${b.estimate}</td>
+            ${b.done ? '' : `<td><input type="checkbox" data-index="${index}" class="doneCheckbox"></td>
+                              <td><button data-index="${index}" class="delete">Delete</button></td>`}
         `;
-        if(b.done) doneTbody.appendChild(row);
-        else pendingTbody.appendChild(row);
+        if(b.done){
+            finishedBody.appendChild(row);
+        } else {
+            pendingBody.appendChild(row);
+        }
+    });
+
+    // Event listeners for done checkboxes
+    document.querySelectorAll('.doneCheckbox').forEach(cb => {
+        cb.addEventListener('change', function(){
+            const idx = this.dataset.index;
+            const bookings = getBookings();
+            bookings[idx].done = this.checked;
+            localStorage.setItem('bookings', JSON.stringify(bookings));
+            renderBookings();
+        });
+    });
+
+    // Event listeners for delete buttons
+    document.querySelectorAll('button.delete').forEach(btn => {
+        btn.addEventListener('click', function(){
+            const idx = this.dataset.index;
+            const bookings = getBookings();
+            bookings.splice(idx,1);
+            localStorage.setItem('bookings', JSON.stringify(bookings));
+            renderBookings();
+        });
     });
 }
 
-// Mark as done
-function markDone(index){
-    bookings[index].done = true;
-    localStorage.setItem('bookings', JSON.stringify(bookings));
-    renderBookings(document.getElementById('searchInput').value);
-}
-
-// Delete booking
-function deleteBooking(index){
-    if(confirm("Are you sure you want to delete this booking?")){
-        bookings.splice(index,1);
-        localStorage.setItem('bookings', JSON.stringify(bookings));
-        renderBookings(document.getElementById('searchInput').value);
-    }
-}
-
-// Search filter
-document.getElementById('searchInput').addEventListener('input', function(){
-    renderBookings(this.value);
-});
-
-// Sorting
+// Sorting function
 document.getElementById('sortSelect').addEventListener('change', function(){
-    renderBookings(document.getElementById('searchInput').value);
+    const sortBy = this.value;
+    const bookings = getBookings();
+    bookings.sort((a,b)=>{
+        if(sortBy==='name') return a.name.localeCompare(b.name);
+        if(sortBy==='date') return new Date(a.date) - new Date(b.date);
+        if(sortBy==='time') return a.time.localeCompare(b.time);
+    });
+    localStorage.setItem('bookings', JSON.stringify(bookings));
+    renderBookings();
 });
 
 // Initial render
