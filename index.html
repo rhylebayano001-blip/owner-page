@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ry’s Auto Shop - Owner Page</title>
+<style>
+body{font-family:Arial, Helvetica, sans-serif; background:#111; color:white; margin:0; padding:0;}
+header{background:#000; padding:15px 40px; display:flex; justify-content:space-between; align-items:center;}
+header h1{color:#ff3c00;}
+nav a{color:white; text-decoration:none; margin-left:25px;}
+nav a:hover{color:#ff3c00;}
+section{padding:30px;}
+input, select{padding:8px; margin:5px 10px 5px 0; border-radius:5px; border:none;}
+table{width:100%; border-collapse:collapse; margin-top:20px;}
+th, td{padding:10px; border-bottom:1px solid #333; text-align:left;}
+th{background:#222;}
+tr.current{background:#1a3c3c;}
+tr:hover{background:#333;}
+h2{color:#ff3c00;}
+</style>
+</head>
+<body>
+
+<header>
+    <h1>Ry’s Auto Shop - Owner Page</h1>
+    <nav>
+        <a href="index.html">Back to Booking Page</a>
+    </nav>
+</header>
+
+<section>
+    <h2>Manage Bookings</h2>
+    
+    <!-- Search & Filters -->
+    <div>
+        <input type="text" id="searchInput" placeholder="Search by Name, Mobile, or Service">
+        <input type="date" id="filterDate">
+        <select id="filterPayment">
+            <option value="">All Payment Types</option>
+            <option value="Cash">Cash</option>
+            <option value="Online">Online</option>
+        </select>
+        <button id="clearFilters">Clear Filters</button>
+    </div>
+
+    <!-- Booking Table -->
+    <table id="bookingTable">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Mobile</th>
+                <th>Service</th>
+                <th>Oil Type</th>
+                <th>Fuel Type</th>
+                <th>Car Type</th>
+                <th>Price</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Payment Type</th>
+                <th>Payment Method</th>
+            </tr>
+        </thead>
+        <tbody id="bookingBody"></tbody>
+    </table>
+</section>
+
+<script>
+const bookingBody = document.getElementById('bookingBody');
+const searchInput = document.getElementById('searchInput');
+const filterDate = document.getElementById('filterDate');
+const filterPayment = document.getElementById('filterPayment');
+const clearFilters = document.getElementById('clearFilters');
+
+// Load all bookings from localStorage
+function loadBookings() {
+    const bookings = JSON.parse(localStorage.getItem('bookings')) || [];
+    displayBookings(bookings);
+}
+
+// Display bookings in table
+function displayBookings(bookings) {
+    bookingBody.innerHTML = '';
+    const now = new Date();
+
+    bookings.forEach(booking => {
+        const bookingDateTime = new Date(booking.date + 'T' + booking.time);
+        const tr = document.createElement('tr');
+
+        // Highlight current/future bookings
+        if(bookingDateTime >= now){
+            tr.classList.add('current');
+        }
+
+        tr.innerHTML = `
+            <td>${booking.name}</td>
+            <td>${booking.mobile}</td>
+            <td>${booking.service}</td>
+            <td>${booking.oilType || '-'}</td>
+            <td>${booking.fuelType || '-'}</td>
+            <td>${booking.carType || '-'}</td>
+            <td>₱${booking.price}</td>
+            <td>${booking.date}</td>
+            <td>${booking.time}</td>
+            <td>${booking.paymentType}</td>
+            <td>${booking.paymentMethod}</td>
+        `;
+        bookingBody.appendChild(tr);
+    });
+}
+
+// Apply search and filters
+function applyFilters() {
+    const bookings = JSON.parse(localStorage.getItem('bookings')) || [];
+    const searchText = searchInput.value.toLowerCase();
+    const dateFilter = filterDate.value;
+    const paymentFilter = filterPayment.value;
+
+    const filtered = bookings.filter(b => {
+        const matchesSearch = b.name.toLowerCase().includes(searchText) ||
+                              b.mobile.toLowerCase().includes(searchText) ||
+                              b.service.toLowerCase().includes(searchText);
+        const matchesDate = dateFilter ? b.date === dateFilter : true;
+        const matchesPayment = paymentFilter ? b.paymentType === paymentFilter : true;
+        return matchesSearch && matchesDate && matchesPayment;
+    });
+
+    displayBookings(filtered);
+}
+
+// Event listeners
+searchInput.addEventListener('input', applyFilters);
+filterDate.addEventListener('change', applyFilters);
+filterPayment.addEventListener('change', applyFilters);
+clearFilters.addEventListener('click', ()=>{
+    searchInput.value = '';
+    filterDate.value = '';
+    filterPayment.value = '';
+    loadBookings();
+});
+
+// Initial load
+loadBookings();
+</script>
+
+</body>
+</html>
