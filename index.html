@@ -5,142 +5,151 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ry’s Auto Shop - Owner Page</title>
 <style>
-body{font-family:Arial, Helvetica, sans-serif; background:#111; color:white; margin:0; padding:0;}
-header{background:#000; padding:15px 40px; display:flex; justify-content:space-between; align-items:center;}
-header h1{color:#ff3c00;}
-nav a{color:white; text-decoration:none; margin-left:25px;}
-nav a:hover{color:#ff3c00;}
-section{padding:30px;}
-input, select{padding:8px; margin:5px 10px 5px 0; border-radius:5px; border:none;}
-table{width:100%; border-collapse:collapse; margin-top:20px;}
-th, td{padding:10px; border-bottom:1px solid #333; text-align:left;}
+body{font-family:Arial,sans-serif; background:#111; color:white; margin:0; padding:20px;}
+h1{color:#ff3c00; text-align:center; margin-bottom:20px;}
+section{margin-bottom:40px;}
+input[type="text"], select{padding:8px; width:300px; margin-bottom:10px; border-radius:5px; border:none;}
+table{width:100%; border-collapse:collapse; margin-top:10px;}
+th,td{border:1px solid #555; padding:8px; text-align:left;}
 th{background:#222;}
-tr.current{background:#1a3c3c;}
-tr:hover{background:#333;}
-h2{color:#ff3c00;}
+tr.pending{background:#222;}
+tr.done{background:#003300; color:#0f0;}
+tr.future{background:#1a1a1a;}
+tr.today{background:#663300;}
+tr.past{background:#555;}
+button{padding:5px 10px; margin:2px; cursor:pointer; border:none; border-radius:5px; color:white;}
+.btn-done{background:#00cc00;}
+.btn-delete{background:#cc0000;}
 </style>
 </head>
 <body>
 
-<header>
-    <h1>Ry’s Auto Shop - Owner Page</h1>
-    <nav>
-        <a href="index.html">Back to Booking Page</a>
-    </nav>
-</header>
+<h1>Ry’s Auto Shop - Owner Dashboard</h1>
 
 <section>
-    <h2>Manage Bookings</h2>
-    
-    <!-- Search & Filters -->
-    <div>
-        <input type="text" id="searchInput" placeholder="Search by Name, Mobile, or Service">
-        <input type="date" id="filterDate">
-        <select id="filterPayment">
-            <option value="">All Payment Types</option>
-            <option value="Cash">Cash</option>
-            <option value="Online">Online</option>
-        </select>
-        <button id="clearFilters">Clear Filters</button>
-    </div>
+    <h2>Search / Filter Bookings</h2>
+    <input type="text" id="searchInput" placeholder="Search by Name, Service, Car Type, or Date">
+    <select id="sortSelect">
+        <option value="">Sort By</option>
+        <option value="name">Name</option>
+        <option value="date">Date</option>
+        <option value="time">Time</option>
+    </select>
+</section>
 
-    <!-- Booking Table -->
-    <table id="bookingTable">
+<section>
+    <h2>Pending / Work Not Done</h2>
+    <table id="pendingTable">
         <thead>
             <tr>
-                <th>Name</th>
-                <th>Mobile</th>
-                <th>Service</th>
-                <th>Oil Type</th>
-                <th>Fuel Type</th>
-                <th>Car Type</th>
-                <th>Price</th>
-                <th>Date</th>
-                <th>Time</th>
-                <th>Payment Type</th>
-                <th>Payment Method</th>
+                <th>Name</th><th>Mobile</th><th>Service</th><th>Car Type</th><th>Oil/Fuel</th><th>Price</th><th>Date</th><th>Time</th><th>Payment</th><th>Actions</th>
             </tr>
         </thead>
-        <tbody id="bookingBody"></tbody>
+        <tbody></tbody>
+    </table>
+</section>
+
+<section>
+    <h2>Finished Work</h2>
+    <table id="doneTable">
+        <thead>
+            <tr>
+                <th>Name</th><th>Mobile</th><th>Service</th><th>Car Type</th><th>Oil/Fuel</th><th>Price</th><th>Date</th><th>Time</th><th>Payment</th><th>Actions</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
     </table>
 </section>
 
 <script>
-const bookingBody = document.getElementById('bookingBody');
-const searchInput = document.getElementById('searchInput');
-const filterDate = document.getElementById('filterDate');
-const filterPayment = document.getElementById('filterPayment');
-const clearFilters = document.getElementById('clearFilters');
+// Load bookings
+let bookings = JSON.parse(localStorage.getItem('bookings')) || [];
 
-// Load all bookings from localStorage
-function loadBookings() {
-    const bookings = JSON.parse(localStorage.getItem('bookings')) || [];
-    displayBookings(bookings);
-}
-
-// Display bookings in table
-function displayBookings(bookings) {
-    bookingBody.innerHTML = '';
+// Render bookings with filter and sorting
+function renderBookings(filter=''){
+    const pendingTbody = document.getElementById('pendingTable').querySelector('tbody');
+    const doneTbody = document.getElementById('doneTable').querySelector('tbody');
+    pendingTbody.innerHTML = '';
+    doneTbody.innerHTML = '';
     const now = new Date();
+    const todayStr = now.toISOString().split('T')[0]; // yyyy-mm-dd
 
-    bookings.forEach(booking => {
-        const bookingDateTime = new Date(booking.date + 'T' + booking.time);
-        const tr = document.createElement('tr');
+    // Sorting
+    const sortBy = document.getElementById('sortSelect').value;
+    let sortedBookings = [...bookings];
+    if(sortBy==='name'){
+        sortedBookings.sort((a,b)=>a.name.localeCompare(b.name));
+    } else if(sortBy==='date'){
+        sortedBookings.sort((a,b)=>new Date(a.date+'T'+a.time) - new Date(b.date+'T'+b.time));
+    } else if(sortBy==='time'){
+        sortedBookings.sort((a,b)=>{
+            const t1 = a.time.split(':'); const t2 = b.time.split(':');
+            return (parseInt(t1[0])*60 + parseInt(t1[1])) - (parseInt(t2[0])*60 + parseInt(t2[1]));
+        });
+    }
 
-        // Highlight current/future bookings
-        if(bookingDateTime >= now){
-            tr.classList.add('current');
+    sortedBookings.forEach((b, index)=>{
+        const searchString = `${b.name} ${b.service} ${b.carType} ${b.date}`.toLowerCase();
+        if(filter && !searchString.includes(filter.toLowerCase())) return;
+
+        const row = document.createElement('tr');
+        // Status color
+        if(b.done) row.className='done';
+        else {
+            if(b.date === todayStr) row.className='today';
+            else if(new Date(b.date+'T'+b.time) > now) row.className='future';
+            else row.className='past';
         }
 
-        tr.innerHTML = `
-            <td>${booking.name}</td>
-            <td>${booking.mobile}</td>
-            <td>${booking.service}</td>
-            <td>${booking.oilType || '-'}</td>
-            <td>${booking.fuelType || '-'}</td>
-            <td>${booking.carType || '-'}</td>
-            <td>₱${booking.price}</td>
-            <td>${booking.date}</td>
-            <td>${booking.time}</td>
-            <td>${booking.paymentType}</td>
-            <td>${booking.paymentMethod}</td>
+        const oilFuel = b.oilType ? `${b.oilType} / ${b.fuelType}` : '-';
+        row.innerHTML = `
+            <td>${b.name}</td>
+            <td>${b.mobile}</td>
+            <td>${b.service}</td>
+            <td>${b.carType}</td>
+            <td>${oilFuel}</td>
+            <td>₱${b.price}</td>
+            <td>${b.date}</td>
+            <td>${b.time}</td>
+            <td>${b.paymentType} (${b.paymentMethod})</td>
+            <td>
+                ${!b.done ? `<button class="btn-done" onclick="markDone(${index})">✔ Done</button>` : ''}
+                <button class="btn-delete" onclick="deleteBooking(${index})">🗑 Delete</button>
+            </td>
         `;
-        bookingBody.appendChild(tr);
+        if(b.done) doneTbody.appendChild(row);
+        else pendingTbody.appendChild(row);
     });
 }
 
-// Apply search and filters
-function applyFilters() {
-    const bookings = JSON.parse(localStorage.getItem('bookings')) || [];
-    const searchText = searchInput.value.toLowerCase();
-    const dateFilter = filterDate.value;
-    const paymentFilter = filterPayment.value;
-
-    const filtered = bookings.filter(b => {
-        const matchesSearch = b.name.toLowerCase().includes(searchText) ||
-                              b.mobile.toLowerCase().includes(searchText) ||
-                              b.service.toLowerCase().includes(searchText);
-        const matchesDate = dateFilter ? b.date === dateFilter : true;
-        const matchesPayment = paymentFilter ? b.paymentType === paymentFilter : true;
-        return matchesSearch && matchesDate && matchesPayment;
-    });
-
-    displayBookings(filtered);
+// Mark as done
+function markDone(index){
+    bookings[index].done = true;
+    localStorage.setItem('bookings', JSON.stringify(bookings));
+    renderBookings(document.getElementById('searchInput').value);
 }
 
-// Event listeners
-searchInput.addEventListener('input', applyFilters);
-filterDate.addEventListener('change', applyFilters);
-filterPayment.addEventListener('change', applyFilters);
-clearFilters.addEventListener('click', ()=>{
-    searchInput.value = '';
-    filterDate.value = '';
-    filterPayment.value = '';
-    loadBookings();
+// Delete booking
+function deleteBooking(index){
+    if(confirm("Are you sure you want to delete this booking?")){
+        bookings.splice(index,1);
+        localStorage.setItem('bookings', JSON.stringify(bookings));
+        renderBookings(document.getElementById('searchInput').value);
+    }
+}
+
+// Search filter
+document.getElementById('searchInput').addEventListener('input', function(){
+    renderBookings(this.value);
 });
 
-// Initial load
-loadBookings();
+// Sorting
+document.getElementById('sortSelect').addEventListener('change', function(){
+    renderBookings(document.getElementById('searchInput').value);
+});
+
+// Initial render
+renderBookings();
 </script>
 
 </body>
